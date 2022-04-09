@@ -1,7 +1,7 @@
 /*
  Name:		pololu_goal_finding.ino
  Created:	4/7/2022 9:39:32 PM
- Author:	Scott
+ Author:	Scott Scherzer
 */
 
 #include <math.h>
@@ -25,13 +25,13 @@ Buzzer buzzer;
 
 // timers
 unsigned long t1, t2; 
-const unsigned long PERIOD = 20; // poll the eoncoders each 20ms
+const unsigned long PERIOD = 20; 
 
-// motor data =====
-const int CLICKS_PER_ROTATION = 12; // gear teeth clicks each time motor makes 1 rotation TURTLE
+// motor data 
+const int CLICKS_PER_ROTATION = 12; // gear teeth clicks each time motor makes 1 rotation 
 const float GEAR_RATIO = 75.81f; // turtle edition
 
-// wheel data =====
+// wheel data 
 const float WHEEL_DIAMETER = 3.2f;
 const float DIST_PER_TICK = (WHEEL_DIAMETER * PI) / (CLICKS_PER_ROTATION * GEAR_RATIO);
 
