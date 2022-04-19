@@ -95,17 +95,6 @@ float currentGoalDistance = startGoalDistance;
 
 /* motor data */
 
-// TODO throttle
-/**
- * explore -40 to allow sharp turns based on magnitude of error
- * If very close to goal, turn sharper like a tank turn, setSpeeds(-40, 40)
- * -1% would be -MIN, -100% would be -MAX
- * 0% would be off (idle) 0
- * 1% would be +MIN, 100% would be +MAX
- * Base speed would be +50%, can be offset by a large error
- * A larger error will reduce linear speed and increase rotational speed
- */
-
 // speed limits
 const float MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 150.0f;
 
@@ -121,9 +110,6 @@ const unsigned long MOTOR_PERIOD = 20UL;
 
 /* PID data */
 
-// TODO use rounding to smooth PID corrections and errors
-
-// TUNE KP lower
 // proportional error factor
 const float KP = 100.0f;
 
@@ -137,7 +123,7 @@ float currentError = 0.0f;
 
 bool bEncoderDebug = false;
 bool bPositionDebug = true;
-bool bMotorDebug = false;
+bool bMotorDebug = true;
 bool bPIDDebug = true;
 
 void setup()
@@ -235,13 +221,6 @@ void getPosition()
 void getPIDCorrection()
 {
   currentError = theta - atan2(yGoal - y, xGoal - x);
-
-  /*
-  if (currentError >= 0.10f || currentError >= -0.10f)
-  {
-    currentError = 0.0f;
-  }
-  */
 
   PIDCorrection = KP * currentError;
 

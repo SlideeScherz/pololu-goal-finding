@@ -1,0 +1,4 @@
+﻿Compiling debug version of 'pololu-goal-finding' for 'Pololu A-Star 32U4'
+Program size: 13,144 bytes (used 46% of a 28,672 byte maximum) (3.15 secs)
+Minimum Memory Usage: 532 bytes (21% of a 2560 byte maximum)
+ 
