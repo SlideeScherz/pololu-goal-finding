@@ -1,5 +1,5 @@
 /*
- Name:		polulo_localization.ino
+ Name:		polulo_goal_finding.ino
  Created:	4/15/2022 12:59:32 PM
  Authors:	Thomas Diaz-Piedra, Scott Scherzer, Christopher Fioti
 */
@@ -62,8 +62,8 @@ int currentGoal = 0;
 const int NUMBER_OF_GOALS = 4;
 
 // goal containers
-float xGoals[NUMBER_OF_GOALS] = { 80.0f, -60.0f, -60.0f, 0.0f };
-float yGoals[NUMBER_OF_GOALS] = { 60.0f, 0.0f, -30.0f, 0.0f };
+float xGoals[NUMBER_OF_GOALS] = { 30.0f, -30.0f, 30.0f, 0.0f };
+float yGoals[NUMBER_OF_GOALS] = { 15.0f, 0.0f, -15.0f, 0.0f };
 float xGoal = xGoals[currentGoal];
 float yGoal = yGoals[currentGoal];
 
@@ -76,20 +76,13 @@ float startGoalDistance = sqrt(sq(xGoal - x) + sq(y - yGoal));
 // current linear distance from goal. Updated on motor period
 float currentGoalDistance = startGoalDistance;
 
-// TUNE distanceFactor
-// update speeds relative to the distance
-float distanceFactor = startGoalDistance / 2.0f;
-
 /* motor data */
 
 // speed constants
-const float MOTOR_BASE_SPEED = 75.0f, MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 110.0f;
+const float MOTOR_BASE_SPEED = 75.0f, MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 150.0f;
 
 // init speed to base
 float leftSpeed = 0.0f, rightSpeed = 0.0f;
-
-// Determine the normalization factor based on Motor_Based_Speed
-const float MOTOR_FACTOR = MOTOR_BASE_SPEED / 100.0f;
 
 // timers
 unsigned long motorT1, motorT2;
@@ -104,11 +97,11 @@ const float KP = 100.0f;
 float PIDCorrection = 0.0f;
 
 // error data
-float currentError = 0.0f, errorMagnitude = 0.0f;
+float currentError = 0.0f;
 
 /* debugging switches */
 bool bEncoderDebug = false;
-bool bPositionDebug = true;
+bool bPositionDebug = false;
 bool bMotorDebug = false;
 bool bPIDDebug = false;
 
@@ -268,11 +261,8 @@ void setMotors(float controllerOutput)
  */
 float angleController(float thetaCorrection, int polarity)
 {
-  // update magnitude based on distance state
-  errorMagnitude = (startGoalDistance - currentGoalDistance) / distanceFactor;
-
   // get a theta corrected wheelSpeed
-  float wheelSpeed = (MOTOR_BASE_SPEED - (errorMagnitude * MOTOR_FACTOR)) + (thetaCorrection * polarity);
+  float wheelSpeed = MOTOR_BASE_SPEED + (thetaCorrection * polarity);
 
   // reduce wheelspeed if within threshold
   if (currentGoalDistance <= DAMPEN_RANGE)
@@ -290,8 +280,6 @@ void debugPID()
   Serial.print("PID ");
   Serial.print("currentError: ");
   Serial.print(currentError);
-  Serial.print(" Magnitude: ");
-  Serial.print(errorMagnitude);
   Serial.print(" output: ");
   Serial.println(PIDCorrection);
 }
