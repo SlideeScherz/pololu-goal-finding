@@ -26,17 +26,21 @@ unsigned long encodersT1, encodersT2;
 const unsigned long ENCODER_PERIOD = 20UL;
 
 // encoder counts
-long countsLeft = 0, countsRight = 0;
-long prevLeft = 0, prevRight = 0;
+long countsLeftT1 = 0, countsRightT1 = 0;
+
+// container to store the previous counts
+long countsLeftT2 = 0, countsRightT2 = 0;
 
 // distance traveled by wheel in cm
-float sL = 0.0f, sR = 0.0f;
+float sLeftT1 = 0.0f, sRightT1 = 0.0f;
 
 // container to store the previous distance traveled
-float prevSL = 0.0f, prevSR = 0.0f;
+float sLeftT2 = 0.0f, sRightT2 = 0.0f;
 
 // difference between current and previous distance traveled
-float sL_Delta = 0.0f, sR_Delta = 0.0f;
+float sLeftDelta = 0.0f, sRightDelta = 0.0f;
+
+/* wheel data */
 
 // wheel and encoder constants, turtle edition
 const float CLICKS_PER_ROTATION = 12.0f;
@@ -55,13 +59,10 @@ const float B = 8.5f;
  * init position objects to start at (0,0)
  */
 
-// distance before applying dampening break force 
-const float DAMPEN_RANGE = 20.0f;
-
 // position cartesian coordinates
 float x = 0.0f, y = 0.0f; 
 
-// angle robot is facing in radians
+// angle robot is facing in radians for polar coordinates
 float theta = 0.0f;
 
 // change in position between last 2 intervals
@@ -95,6 +96,9 @@ float currentGoalDistance = startGoalDistance;
 
 /* motor data */
 
+// distance before applying dampening break force 
+const float DAMPEN_RANGE = 20.0f;
+
 // speed limits
 const float MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 150.0f;
 
@@ -122,9 +126,9 @@ float currentError = 0.0f;
 /* debugging switches */
 
 bool bEncoderDebug = false;
-bool bPositionDebug = true;
-bool bMotorDebug = true;
-bool bPIDDebug = true;
+bool bPositionDebug = false;
+bool bMotorDebug = false;
+bool bPIDDebug = false;
 
 void setup()
 {
@@ -155,27 +159,29 @@ void readEncoders()
   {
 
     // read current encoder count
-    countsLeft += encoders.getCountsAndResetLeft();
-    countsRight += encoders.getCountsAndResetRight();
+    countsLeftT1 += encoders.getCountsAndResetLeft();
+    countsRightT1 += encoders.getCountsAndResetRight();
 
     // update the distance traveled by each wheel
-    sL += (countsLeft - prevLeft) * DIST_PER_TICK;
-    sR += (countsRight - prevRight) * DIST_PER_TICK;
+    sLeftT1 += (countsLeftT1 - countsLeftT2) * DIST_PER_TICK;
+    sRightT1 += (countsRightT1 - countsRightT2) * DIST_PER_TICK;
 
     // get change of current and previous distance traveled
-    sL_Delta = sL - prevSL;
-    sR_Delta = sR - prevSR;
+    sLeftDelta = sLeftT1 - sLeftT2;
+    sRightDelta = sRightT1 - sRightT2;
 
     // write previous encoder count
-    prevLeft = countsLeft;
-    prevRight = countsRight;
+    countsLeftT2 = countsLeftT1;
+    countsRightT2 = countsRightT1;
 
     // write previous distance traveled
-    prevSL = sL;
-    prevSR = sR;
+    sLeftT2 = sLeftT1;
+    sRightT2 = sRightT1;
 
     // reset timer
     encodersT2 = encodersT1;
+
+    if (bEncoderDebug) debugEncoders();
 
     // send encoder data to calculate x,y,theta position
     getPosition();
@@ -190,8 +196,8 @@ void readEncoders()
 void getPosition()
 {
   // update position using the deltas of each
-  positionDelta = (sL_Delta + sR_Delta) / 2.0f;
-  thetaDelta = (sR_Delta - sL_Delta) / B;
+  positionDelta = (sLeftDelta + sRightDelta) / 2.0f;
+  thetaDelta = (sRightDelta - sLeftDelta) / B;
 
   // get polar coordinates of x and y
   xDelta = positionDelta * cos(theta + thetaDelta / 2.0f);
@@ -322,15 +328,27 @@ void debugPID()
 void debugEncoders()
 {
   Serial.print("ENC ");
-  Serial.print(sL);
+  Serial.print("countsT1: ");
+  Serial.print(countsLeftT1);
   Serial.print(", ");
-  Serial.print(sR);
-
+  Serial.print(countsRightT1);
+  Serial.print(" countsT2: ");
+  Serial.print(countsLeftT2);
+  Serial.print(", ");
+  Serial.print(countsRightT2);
+  Serial.print(" sT1: ");
+  Serial.print(sLeftT1);
+  Serial.print(", ");
+  Serial.print(sRightT1);
+  Serial.print(" sT2: ");
+  Serial.print(sLeftT2);
+  Serial.print(", ");
+  Serial.print(sRightT2);
   Serial.print(" sDeltas: ");
-  Serial.print(sL_Delta);
+  Serial.print(sLeftDelta);
   Serial.print(", ");
-  Serial.print(sR_Delta);
-  Serial.print(" TraveledDist: ");
+  Serial.print(sRightDelta);
+  Serial.print(" posDelta: ");
   Serial.println(positionDelta);
 }
 
