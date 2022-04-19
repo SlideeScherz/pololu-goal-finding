@@ -38,12 +38,13 @@ float prevSL = 0.0f, prevSR = 0.0f;
 // difference between current and previous distance traveled
 float sL_Delta = 0.0f, sR_Delta = 0.0f;
 
-// TODO: make calculation a const
-// wheel and encoder constants
+// wheel and encoder constants, turtle edition
 const float CLICKS_PER_ROTATION = 12.0f;
 const float GEAR_RATIO = 75.81f;
-const float WHEEL_DIAMETER = 3.2f; 
-const float WHEEL_CIRCUMFRENCE = WHEEL_DIAMETER * PI; // TODO remover circumf and make one formula
+const float WHEEL_DIAMETER = 3.2f;
+
+// cm traveled each gear tick
+const float DIST_PER_TICK = (WHEEL_DIAMETER * PI) / (CLICKS_PER_ROTATION * GEAR_RATIO);
 
 // distance between the 2 drive wheels from the center point of the contact patches
 const float B = 8.5f;
@@ -172,8 +173,8 @@ void readEncoders()
     countsRight += encoders.getCountsAndResetRight();
 
     // update the distance traveled by each wheel
-    sL += ((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFRENCE);
-    sR += ((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFRENCE);
+    sL += (countsLeft - prevLeft) * DIST_PER_TICK;
+    sR += (countsRight - prevRight) * DIST_PER_TICK;
 
     // get change of current and previous distance traveled
     sL_Delta = sL - prevSL;
