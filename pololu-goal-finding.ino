@@ -62,8 +62,8 @@ int currentGoal = 0;
 const int NUMBER_OF_GOALS = 4;
 
 // goal containers
-float xGoals[NUMBER_OF_GOALS] = { 20.0f, -20.0f, -20.0f, 0.0f };
-float yGoals[NUMBER_OF_GOALS] = { 20.0f, 0.0f, -20.0f, 0.0f };
+float xGoals[NUMBER_OF_GOALS] = { 80.0f, -60.0f, -60.0f, 0.0f };
+float yGoals[NUMBER_OF_GOALS] = { 60.0f, 0.0f, -30.0f, 0.0f };
 float xGoal = xGoals[currentGoal];
 float yGoal = yGoals[currentGoal];
 
@@ -108,7 +108,7 @@ float currentError = 0.0f, errorMagnitude = 0.0f;
 
 /* debugging switches */
 bool bEncoderDebug = false;
-bool bPositionDebug = false;
+bool bPositionDebug = true;
 bool bMotorDebug = false;
 bool bPIDDebug = false;
 
