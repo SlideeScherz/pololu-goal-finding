@@ -29,11 +29,11 @@ Once encoder data has been updated, update the robots current position
 
 **Distance formula**
 
-![eq](https://latex.codecogs.com/svg.image?{\color{Gray}distance&space;=&space;\sqrt{(x2&space;-&space;x1)^{2}&space;&plus;&space;(y2&space;-&space;y1)^{2}}})
+![eq](https://latex.codecogs.com/svg.image?\bg{black}{\color{Cyan}distance&space;=&space;\sqrt{(x2&space;-&space;x1)^{2}&space;&plus;&space;(y2&space;-&space;y1)^{2}}})
 
 **For our usage we will implement** 
 
-![eq2](https://latex.codecogs.com/svg.image?{\color{Gray}goalDistance&space;=&space;\sqrt{(xGoal&space;-&space;xPos)^{2}&space;&plus;&space;(yGoal&space;-&space;yPos)^{2}}})
+![eq2](https://latex.codecogs.com/svg.image?\bg{black}{\color{Cyan}goalDistance&space;=&space;\sqrt{(xGoal&space;-&space;xPos)^{2}&space;&plus;&space;(yGoal&space;-&space;yPos)^{2}}})
 
 ```cpp
 // get linear distance
