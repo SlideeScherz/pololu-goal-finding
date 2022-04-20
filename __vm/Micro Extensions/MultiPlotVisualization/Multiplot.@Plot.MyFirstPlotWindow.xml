@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PlotSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <CurveSettingCollection>
+    <CurveSettings>
+      <CurveId>data</CurveId>
+      <CurveDisplayName>data</CurveDisplayName>
+      <CurveLineTicks>None</CurveLineTicks>
+      <CurveColor>Green</CurveColor>
+      <ChartAssignment2>0</ChartAssignment2>
+    </CurveSettings>
+  </CurveSettingCollection>
+  <XSweepTime>1 min</XSweepTime>
+  <XTimeFormat>Auto</XTimeFormat>
+  <DisplayRefreshRate>Rate1000ms</DisplayRefreshRate>
+  <ChartType>LineChart</ChartType>
+  <OptimizeBinaryCurves>On</OptimizeBinaryCurves>
+  <CurveDistribution>MultipleCharts</CurveDistribution>
+  <TriggerEnabled>false</TriggerEnabled>
+  <TriggerCondition>None</TriggerCondition>
+  <TriggerMode>Continuous</TriggerMode>
+  <LineWidths2>Auto</LineWidths2>
+</PlotSettings>

@@ -51,13 +51,9 @@ const float WHEEL_DIAMETER = 3.2f;
 const float DIST_PER_TICK = (WHEEL_DIAMETER * PI) / (CLICKS_PER_ROTATION * GEAR_RATIO);
 
 // distance between the 2 drive wheels from the center point of the contact patches
-const float B = 8.5f;
-//TEST const float B = 8.255f;
+const float B = 8.5f; //TUNE B
 
-/** 
- * position data 
- * init position objects to start at (0,0)
- */
+/* position data */
 
 // position cartesian coordinates
 float x = 0.0f, y = 0.0f; 
@@ -96,6 +92,18 @@ float currentGoalDistance = startGoalDistance;
 
 /* motor data */
 
+// TODO throttle
+/**
+ * child of the dual-pid, replace angleController
+ * explore -40 to allow sharp turns based on magnitude of error
+ * If very close to goal, turn sharper like a tank turn, setSpeeds(-40, 40)
+ * -1% would be -MIN, -100% would be -MAX
+ * 0% would be off (idle) 0
+ * 1% would be +MIN, 100% would be +MAX
+ * Base speed would be +50%, can be offset by a large error
+ * A larger error will reduce linear speed and increase rotational speed
+ */
+
 // distance before applying dampening break force 
 const float DAMPEN_RANGE = 20.0f;
 
@@ -114,6 +122,7 @@ const unsigned long MOTOR_PERIOD = 20UL;
 
 /* PID data */
 
+ // TUNE lower KP and more dynamic turning
 // proportional error factor
 const float KP = 100.0f;
 
@@ -122,6 +131,9 @@ float PIDCorrection = 0.0f;
 
 // current theta vs theta of goal. Derived from arctan
 float currentError = 0.0f;
+
+// used in calculating error
+float arctanToGoal = 0.0f;
 
 /* debugging switches */
 
@@ -133,7 +145,8 @@ bool bPIDDebug = false;
 void setup()
 {
   Serial.begin(9600);
-  delay(1000);
+  delay(3000);
+  printHeadings();
 }
 
 void loop()
@@ -213,6 +226,9 @@ void getPosition()
 
   if (bPositionDebug) debugPosition();
 
+  //TEMP 
+  plotPosition();
+
   // send position data to PID controller to get a correction
   getPIDCorrection();
 }
@@ -226,7 +242,10 @@ void getPosition()
  */
 void getPIDCorrection()
 {
-  currentError = theta - atan2(yGoal - y, xGoal - x);
+
+  arctanToGoal = atan2(yGoal - y, xGoal - x);
+
+  currentError = theta - arctanToGoal;
 
   PIDCorrection = KP * currentError;
 
@@ -319,7 +338,9 @@ float angleController(float thetaCorrection, int polarity)
 void debugPID()
 {
   Serial.print("PID ");
-  Serial.print("err: ");
+  Serial.print("atan: ");
+  Serial.print(arctanToGoal);
+  Serial.print(" err: ");
   Serial.print(currentError);
   Serial.print(" output: ");
   Serial.println(PIDCorrection);
@@ -376,14 +397,48 @@ void debugPosition()
   Serial.print(")");
   Serial.print(" goalDist: ");
   Serial.println(currentGoalDistance);
+}
 
-  /* uncomment if needed
-  Serial.print(" deltas: (");
-  Serial.print(xChange);
-  Serial.print(", ");
-  Serial.print(yChange);
-  Serial.print(", ");
-  Serial.print(thetaChange);
-  Serial.print(")");
-  */
+// export the log for excel plotting and tuning
+void plotPosition()
+{
+  Serial.print(x);
+  Serial.print(",");
+  Serial.print(y);
+  Serial.print(",");
+  Serial.print(theta);
+  Serial.print(",");
+  Serial.print(xGoal);
+  Serial.print(",");
+  Serial.print(yGoal);
+  Serial.print(",");
+  Serial.print(currentGoalDistance);
+  Serial.print(",");
+  Serial.print(arctanToGoal);
+  Serial.print(",");
+  Serial.print(currentError);
+  Serial.print(",");
+  Serial.print(PIDCorrection);
+  Serial.print(",");
+  Serial.print(leftSpeed);
+  Serial.print(",");
+  Serial.println(rightSpeed);
+}
+
+void printHeadings()
+{
+  Serial.println(); // nextline
+  Serial.println(__TIMESTAMP__);
+  
+  Serial.print("X,");
+  Serial.print("Y,");
+  Serial.print("Theta,");
+  Serial.print("xGoal,");
+  Serial.print("yGoal,");
+  Serial.print("currentGoalDistance,");
+  Serial.print("arctanToGoal,");
+  Serial.print("currentError,");
+  Serial.print("PIDCorrection,");
+  Serial.print("leftSpeed,");
+  Serial.println("rightSpeed,");
 }
