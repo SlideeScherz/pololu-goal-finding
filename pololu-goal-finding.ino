@@ -16,10 +16,12 @@ Encoders encoders;
 Motors motors;
 Buzzer buzzer;
 
-/**
- * encoder data
- * init all encoder data to 0 since no distance has been traveled
- */
+// constants for parsing pos, delta, goal arrays
+#define X 0
+#define Y 1
+#define THETA 2
+
+/* encoder data */
 
 // timers 
 unsigned long encodersT1, encodersT2;
@@ -40,6 +42,9 @@ float sLeftT2 = 0.0f, sRightT2 = 0.0f;
 // difference between current and previous distance traveled
 float sLeftDelta = 0.0f, sRightDelta = 0.0f;
 
+// change in distance traveled between last 2 intervals
+float sDelta = 0.0f;
+
 /* wheel data */
 
 // wheel and encoder constants, turtle edition
@@ -55,17 +60,11 @@ const float B = 8.5f; //TUNE B
 
 /* position data */
 
-// position cartesian coordinates
-float x = 0.0f, y = 0.0f; 
-
-// angle robot is facing in radians for polar coordinates
-float theta = 0.0f;
+// positional polar coordinates
+float pos[3] = { 0.0f, 0.0f, 0.0f };
 
 // change in position between last 2 intervals
-float xDelta = 0.0f, yDelta = 0.0f, thetaDelta = 0.0f;
-
-// change in distance traveled between last 2 intervals
-float positionDelta = 0.0f;
+float delta[3] = { 0.0f, 0.0f, 0.0f };
 
 /* goal data */
 
@@ -85,7 +84,8 @@ float yGoal = yGoals[currentGoal];
 float goalPrecision = 0.75f;
 
 // starting linear distance from goal. Updated on goal change
-float startGoalDistance = sqrt(sq(xGoal - x) + sq(y - yGoal));
+//TODO swapped ygoal and y
+float startGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
 
 // current linear distance from goal. Updated on motor period
 float currentGoalDistance = startGoalDistance;
@@ -209,20 +209,21 @@ void readEncoders()
 void getPosition()
 {
   // update position using the deltas of each
-  positionDelta = (sLeftDelta + sRightDelta) / 2.0f;
-  thetaDelta = (sRightDelta - sLeftDelta) / B;
+  sDelta = (sLeftDelta + sRightDelta) / 2.0f;
+  delta[THETA] = (sRightDelta - sLeftDelta) / B;
 
   // get polar coordinates of x and y
-  xDelta = positionDelta * cos(theta + thetaDelta / 2.0f);
-  yDelta = positionDelta * sin(theta + thetaDelta / 2.0f);
+  delta[X] = sDelta * cos(pos[THETA] + delta[THETA] / 2.0f);
+  delta[Y] = sDelta * sin(pos[THETA] + delta[THETA] / 2.0f);
 
   // update coordinates
-  x += xDelta;
-  y += yDelta;
-  theta += thetaDelta;
+  pos[X] += delta[X];
+  pos[Y] += delta[Y];
+  pos[THETA] += delta[THETA];
 
   // calculate linear distance to goal using updated position
-  currentGoalDistance = sqrt(sq(xGoal - x) + sq(y - yGoal));
+  //TODO make sure this works
+  currentGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
 
   if (bPositionDebug) debugPosition();
 
@@ -242,10 +243,9 @@ void getPosition()
  */
 void getPIDCorrection()
 {
+  arctanToGoal = atan2(yGoal - pos[Y], xGoal - pos[X]);
 
-  arctanToGoal = atan2(yGoal - y, xGoal - x);
-
-  currentError = theta - arctanToGoal;
+  currentError = pos[THETA] - arctanToGoal;
 
   PIDCorrection = KP * currentError;
 
@@ -263,7 +263,7 @@ void checkGoalStatus()
   bool goalCompleted = false;
 
   // check completed goal and set status
-  if ((xGoal - goalPrecision <= x && xGoal + goalPrecision >= x) && (yGoal - goalPrecision <= y && yGoal + goalPrecision >= y))
+  if ((xGoal - goalPrecision <= pos[X] && xGoal + goalPrecision >= pos[X]) && (yGoal - goalPrecision <= pos[Y] && yGoal + goalPrecision >= pos[Y]))
     goalCompleted = true;
 
   // advance to next goal
@@ -278,7 +278,7 @@ void checkGoalStatus()
     yGoal = yGoals[currentGoal];
 
     // update start goal distance
-    startGoalDistance = sqrt(sq(xGoal - x) + sq(y - yGoal));
+    startGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
 
     // sleep after returning home
     if (currentGoal == NUMBER_OF_GOALS)
@@ -363,7 +363,7 @@ void debugEncoders()
   Serial.print(", ");
   Serial.print(sRightDelta);
   Serial.print(" posDelta: ");
-  Serial.println(positionDelta);
+  Serial.println(sDelta);
 }
 
 void debugMotors()
@@ -377,11 +377,11 @@ void debugMotors()
 void debugPosition()
 {
   Serial.print("POS (");
-  Serial.print(x);
+  Serial.print(pos[X]);
   Serial.print(", ");
-  Serial.print(y);
+  Serial.print(pos[Y]);
   Serial.print(", ");
-  Serial.print(theta);
+  Serial.print(pos[THETA]);
   Serial.print(")");
   Serial.print(" tgt (");
   Serial.print(xGoal);
@@ -395,11 +395,11 @@ void debugPosition()
 // export the log for excel plotting and tuning
 void plotPosition()
 {
-  Serial.print(x);
+  Serial.print(pos[X]);
   Serial.print(",");
-  Serial.print(y);
+  Serial.print(pos[Y]);
   Serial.print(",");
-  Serial.print(theta);
+  Serial.print(pos[THETA]);
   Serial.print(",");
   Serial.print(xGoal);
   Serial.print(",");
