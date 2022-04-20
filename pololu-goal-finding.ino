@@ -72,20 +72,20 @@ float delta[3] = { 0.0f, 0.0f, 0.0f };
 int currentGoal = 0;
 
 // len of GOALS array, how many goals we want to navigate to 
-const int NUMBER_OF_GOALS = 4;
+const int NUM_GOALS = 4;
 
 // goal containers
-float xGoals[NUMBER_OF_GOALS] = { 30.0f, -30.0f, 30.0f, 0.0f };
-float yGoals[NUMBER_OF_GOALS] = { 15.0f, 0.0f, -15.0f, 0.0f };
-float xGoal = xGoals[currentGoal];
-float yGoal = yGoals[currentGoal];
+float xGoals[NUM_GOALS] = { 30.0f, -30.0f, 30.0f, 0.0f };
+float yGoals[NUM_GOALS] = { 15.0f, 0.0f, -15.0f, 0.0f };
+
+// coordinates of goal
+float goal[2] = { xGoals[currentGoal] , yGoals[currentGoal] };
 
 // allow a slight error within this range
 float goalPrecision = 0.75f;
 
 // starting linear distance from goal. Updated on goal change
-//TODO swapped ygoal and y
-float startGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
+float startGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 
 // current linear distance from goal. Updated on motor period
 float currentGoalDistance = startGoalDistance;
@@ -138,7 +138,7 @@ float arctanToGoal = 0.0f;
 /* debugging switches */
 
 bool bEncoderDebug = false;
-bool bPositionDebug = true;
+bool bPositionDebug = false;
 bool bMotorDebug = false;
 bool bPIDDebug = false;
 
@@ -146,12 +146,12 @@ void setup()
 {
   Serial.begin(9600);
   delay(3000);
-  printHeadings();
+  printCSVHeadings();
 }
 
 void loop()
 {
-  if (currentGoal < NUMBER_OF_GOALS)
+  if (currentGoal < NUM_GOALS)
   {
     readEncoders();
     setMotors();
@@ -222,13 +222,12 @@ void getPosition()
   pos[THETA] += delta[THETA];
 
   // calculate linear distance to goal using updated position
-  //TODO make sure this works
-  currentGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
+  currentGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 
   if (bPositionDebug) debugPosition();
 
   //TEMP 
-  //plotPosition();
+  logCSV();
 
   // send position data to PID controller to get a correction
   getPIDCorrection();
@@ -243,7 +242,7 @@ void getPosition()
  */
 void getPIDCorrection()
 {
-  arctanToGoal = atan2(yGoal - pos[Y], xGoal - pos[X]);
+  arctanToGoal = atan2(goal[Y] - pos[Y], goal[X] - pos[X]);
 
   currentError = pos[THETA] - arctanToGoal;
 
@@ -263,7 +262,7 @@ void checkGoalStatus()
   bool goalCompleted = false;
 
   // check completed goal and set status
-  if ((xGoal - goalPrecision <= pos[X] && xGoal + goalPrecision >= pos[X]) && (yGoal - goalPrecision <= pos[Y] && yGoal + goalPrecision >= pos[Y]))
+  if ((goal[X] - goalPrecision <= pos[X] && goal[X] + goalPrecision >= pos[X]) && (goal[Y] - goalPrecision <= pos[Y] && goal[Y] + goalPrecision >= pos[Y]))
     goalCompleted = true;
 
   // advance to next goal
@@ -274,14 +273,14 @@ void checkGoalStatus()
 
     // cycle next goal
     currentGoal++;
-    xGoal = xGoals[currentGoal];
-    yGoal = yGoals[currentGoal];
+    goal[X] = xGoals[currentGoal];
+    goal[Y] = yGoals[currentGoal];
 
     // update start goal distance
-    startGoalDistance = sqrt(sq(xGoal - pos[X]) + sq(yGoal - pos[Y]));
+    startGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 
     // sleep after returning home
-    if (currentGoal == NUMBER_OF_GOALS)
+    if (currentGoal == NUM_GOALS)
     {
       motors.setSpeeds(0, 0);
       ledGreen(1);
@@ -320,6 +319,10 @@ void setMotors()
     if (rightSpeed < MOTOR_MIN_SPEED) rightSpeed = MOTOR_MIN_SPEED;
     else if (rightSpeed > MOTOR_MAX_SPEED) rightSpeed = MOTOR_MAX_SPEED;
 
+    // round wheelspeeds
+    leftSpeed = floor(leftSpeed);
+    rightSpeed = floor(rightSpeed);
+    
     motors.setSpeeds(leftSpeed, rightSpeed);
 
     if (bMotorDebug) debugMotors();
@@ -384,16 +387,16 @@ void debugPosition()
   Serial.print(pos[THETA]);
   Serial.print(")");
   Serial.print(" tgt (");
-  Serial.print(xGoal);
+  Serial.print(goal[X]);
   Serial.print(", ");
-  Serial.print(yGoal);
+  Serial.print(goal[Y]);
   Serial.print(")");
   Serial.print(" goalDist: ");
   Serial.println(currentGoalDistance);
 }
 
-// export the log for excel plotting and tuning
-void plotPosition()
+// export data for excel plotting and tuning
+void logCSV()
 {
   Serial.print(pos[X]);
   Serial.print(",");
@@ -401,9 +404,9 @@ void plotPosition()
   Serial.print(",");
   Serial.print(pos[THETA]);
   Serial.print(",");
-  Serial.print(xGoal);
+  Serial.print(goal[X]);
   Serial.print(",");
-  Serial.print(yGoal);
+  Serial.print(goal[Y]);
   Serial.print(",");
   Serial.print(currentGoalDistance);
   Serial.print(",");
@@ -418,7 +421,7 @@ void plotPosition()
   Serial.println(rightSpeed);
 }
 
-void printHeadings()
+void printCSVHeadings()
 {
   Serial.println(); // nextline
   Serial.println(__TIMESTAMP__);
@@ -428,10 +431,10 @@ void printHeadings()
   Serial.print("Theta,");
   Serial.print("xGoal,");
   Serial.print("yGoal,");
-  Serial.print("currentGoalDistance,");
-  Serial.print("arctanToGoal,");
-  Serial.print("currentError,");
-  Serial.print("PIDCorrection,");
+  Serial.print("goalDist,");
+  Serial.print("atan,");
+  Serial.print("err,");
+  Serial.print("PID,");
   Serial.print("leftSpeed,");
   Serial.println("rightSpeed,");
 }
