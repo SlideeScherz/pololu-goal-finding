@@ -111,10 +111,10 @@ const float DAMPEN_RANGE = 20.0f;
 const float MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 150.0f;
 
 // speed constants
-const float MOTOR_BASE_SPEED = 75.0f, MOTOR_IDLE = 0.0f;
+const float MOTOR_BASE_SPEED = 75.0f;
 
 // wheelSpeed containers. Set by PID output
-float leftSpeed = MOTOR_IDLE, rightSpeed = MOTOR_IDLE;
+float leftSpeed = MOTOR_MIN_SPEED, rightSpeed = MOTOR_MIN_SPEED;
 
 // timers
 unsigned long motorT1, motorT2;
@@ -138,7 +138,7 @@ float arctanToGoal = 0.0f;
 /* debugging switches */
 
 bool bEncoderDebug = false;
-bool bPositionDebug = false;
+bool bPositionDebug = true;
 bool bMotorDebug = false;
 bool bPIDDebug = false;
 
@@ -227,7 +227,7 @@ void getPosition()
   if (bPositionDebug) debugPosition();
 
   //TEMP 
-  plotPosition();
+  //plotPosition();
 
   // send position data to PID controller to get a correction
   getPIDCorrection();
@@ -289,10 +289,11 @@ void checkGoalStatus()
   }
 }
 
+//TODO: anglePID
+//TODO: speedPID
+
 /**
  * set motor speeds with PID input
- * adjusts wheel speeds individually to controll angle based on error
- * @param none reads PID result of angle correction
  * @returns void. sets left and right global wheelspeeds.
  */
 void setMotors()
@@ -302,8 +303,22 @@ void setMotors()
   if (motorT1 > motorT2 + MOTOR_PERIOD)
   {
 
-    leftSpeed = angleController(PIDCorrection, 1);
-    rightSpeed = angleController(PIDCorrection, -1);
+    leftSpeed = MOTOR_BASE_SPEED + PIDCorrection;
+    rightSpeed = MOTOR_BASE_SPEED + PIDCorrection * -1.0f;
+
+    // reduce wheelspeed if within threshold
+    if (currentGoalDistance <= DAMPEN_RANGE)
+    {
+      leftSpeed *= (currentGoalDistance / DAMPEN_RANGE);
+      rightSpeed *= (currentGoalDistance / DAMPEN_RANGE);
+    }
+      
+    // check max and min speed limits
+    if (leftSpeed < MOTOR_MIN_SPEED) leftSpeed = MOTOR_MIN_SPEED;
+    else if (leftSpeed > MOTOR_MAX_SPEED) leftSpeed = MOTOR_MAX_SPEED;
+
+    if (rightSpeed < MOTOR_MIN_SPEED) rightSpeed = MOTOR_MIN_SPEED;
+    else if (rightSpeed > MOTOR_MAX_SPEED) rightSpeed = MOTOR_MAX_SPEED;
 
     motors.setSpeeds(leftSpeed, rightSpeed);
 
@@ -311,28 +326,6 @@ void setMotors()
 
     motorT2 = motorT1;
   }
-}
-
-/**
- * set each wheel individually and apply a dampen force
- * @param speedInput PID controller correction
- * @param polarity positive or negative to adjust direction
- * @returns wheelSpeed speed for the desired wheel
- */
-float angleController(float thetaCorrection, int polarity)
-{
-  // get a theta corrected wheelSpeed
-  float wheelSpeed = MOTOR_BASE_SPEED + (thetaCorrection * polarity);
-
-  // reduce wheelspeed if within threshold
-  if (currentGoalDistance <= DAMPEN_RANGE)
-    wheelSpeed *= (currentGoalDistance / DAMPEN_RANGE);
-
-  // check max and min speed limits
-  if (wheelSpeed < MOTOR_MIN_SPEED) wheelSpeed = MOTOR_MIN_SPEED;
-  else if (wheelSpeed > MOTOR_MAX_SPEED) wheelSpeed = MOTOR_MAX_SPEED;
-
-  return wheelSpeed;
 }
 
 void debugPID()
