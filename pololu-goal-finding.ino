@@ -17,9 +17,7 @@ Motors motors;
 Buzzer buzzer;
 
 // constants for parsing pos, delta, goal arrays
-#define X 0
-#define Y 1
-#define THETA 2
+constexpr int X = 0, Y = 1, THETA = 2;
 
 /* encoder data */
 
@@ -56,7 +54,7 @@ const float WHEEL_DIAMETER = 3.2f;
 const float DIST_PER_TICK = (WHEEL_DIAMETER * PI) / (CLICKS_PER_ROTATION * GEAR_RATIO);
 
 // distance between the 2 drive wheels from the center point of the contact patches
-const float B = 8.5f; //TUNE B
+const float B = 8.5f; 
 
 /* position data */
 
@@ -64,10 +62,9 @@ const float B = 8.5f; //TUNE B
 float pos[3] = { 0.0f, 0.0f, 0.0f };
 
 // change in position between last 2 intervals
-float delta[3] = { 0.0f, 0.0f, 0.0f };
+float posDelta[3] = { 0.0f, 0.0f, 0.0f };
 
 /* goal data */
-
 // index of GOAL array to select which goal to navigate to 
 int currentGoal = 0;
 
@@ -75,8 +72,8 @@ int currentGoal = 0;
 const int NUM_GOALS = 4;
 
 // goal containers
-float xGoals[NUM_GOALS] = { 30.0f, -30.0f, 30.0f, 0.0f };
-float yGoals[NUM_GOALS] = { 15.0f, 0.0f, -15.0f, 0.0f };
+float xGoals[NUM_GOALS] = { 100.0f, -50.0f, 100.0f, 0.0f };
+float yGoals[NUM_GOALS] = { 80.0f, 30.0f, -150.0f, 0.0f };
 
 // coordinates of goal
 float goal[2] = { xGoals[currentGoal] , yGoals[currentGoal] };
@@ -91,27 +88,14 @@ float startGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 float currentGoalDistance = startGoalDistance;
 
 /* motor data */
-
-// TODO throttle
-/**
- * child of the dual-pid, replace angleController
- * explore -40 to allow sharp turns based on magnitude of error
- * If very close to goal, turn sharper like a tank turn, setSpeeds(-40, 40)
- * -1% would be -MIN, -100% would be -MAX
- * 0% would be off (idle) 0
- * 1% would be +MIN, 100% would be +MAX
- * Base speed would be +50%, can be offset by a large error
- * A larger error will reduce linear speed and increase rotational speed
- */
-
 // distance before applying dampening break force 
 const float DAMPEN_RANGE = 20.0f;
 
 // speed limits
-const float MOTOR_MIN_SPEED = 40.0f, MOTOR_MAX_SPEED = 150.0f;
+const float MOTOR_MIN_SPEED = 50.0f, MOTOR_MAX_SPEED = 150.0f;
 
 // speed constants
-const float MOTOR_BASE_SPEED = 75.0f;
+const float MOTOR_BASE_SPEED = 100.0f;
 
 // wheelSpeed containers. Set by PID output
 float leftSpeed = MOTOR_MIN_SPEED, rightSpeed = MOTOR_MIN_SPEED;
@@ -121,10 +105,8 @@ unsigned long motorT1, motorT2;
 const unsigned long MOTOR_PERIOD = 20UL;
 
 /* PID data */
-
- // TUNE lower KP and more dynamic turning
 // proportional error factor
-const float KP = 100.0f;
+const float KP = 20.0f;
 
 // suggested PID correction object
 float PIDCorrection = 0.0f;
@@ -136,11 +118,14 @@ float currentError = 0.0f;
 float arctanToGoal = 0.0f;
 
 /* debugging switches */
-
 bool bEncoderDebug = false;
 bool bPositionDebug = false;
 bool bMotorDebug = false;
 bool bPIDDebug = false;
+
+bool bLogCSV = true;
+unsigned long csvT1 = 0UL, csvT2 = 0UL;
+const unsigned long csvPERIOD = 50UL;
 
 void setup()
 {
@@ -157,6 +142,8 @@ void loop()
     setMotors();
     checkGoalStatus();
   }
+
+  if (bLogCSV) logCSV();
 }
 
 /**
@@ -210,24 +197,21 @@ void getPosition()
 {
   // update position using the deltas of each
   sDelta = (sLeftDelta + sRightDelta) / 2.0f;
-  delta[THETA] = (sRightDelta - sLeftDelta) / B;
+  posDelta[THETA] = (sRightDelta - sLeftDelta) / B;
 
   // get polar coordinates of x and y
-  delta[X] = sDelta * cos(pos[THETA] + delta[THETA] / 2.0f);
-  delta[Y] = sDelta * sin(pos[THETA] + delta[THETA] / 2.0f);
+  posDelta[X] = sDelta * cos(pos[THETA] + posDelta[THETA] / 2.0f);
+  posDelta[Y] = sDelta * sin(pos[THETA] + posDelta[THETA] / 2.0f);
 
   // update coordinates
-  pos[X] += delta[X];
-  pos[Y] += delta[Y];
-  pos[THETA] += delta[THETA];
+  pos[X] += posDelta[X];
+  pos[Y] += posDelta[Y];
+  pos[THETA] += posDelta[THETA];
 
   // calculate linear distance to goal using updated position
   currentGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 
   if (bPositionDebug) debugPosition();
-
-  //TEMP 
-  logCSV();
 
   // send position data to PID controller to get a correction
   getPIDCorrection();
@@ -303,7 +287,7 @@ void setMotors()
   {
 
     leftSpeed = MOTOR_BASE_SPEED + PIDCorrection;
-    rightSpeed = MOTOR_BASE_SPEED + PIDCorrection * -1.0f;
+    rightSpeed = MOTOR_BASE_SPEED - PIDCorrection;
 
     // reduce wheelspeed if within threshold
     if (currentGoalDistance <= DAMPEN_RANGE)
@@ -313,15 +297,15 @@ void setMotors()
     }
       
     // check max and min speed limits
-    if (leftSpeed < MOTOR_MIN_SPEED) leftSpeed = MOTOR_MIN_SPEED;
-    else if (leftSpeed > MOTOR_MAX_SPEED) leftSpeed = MOTOR_MAX_SPEED;
+    if (leftSpeed <= MOTOR_MIN_SPEED) leftSpeed = MOTOR_MIN_SPEED;
+    else if (leftSpeed >= MOTOR_MAX_SPEED) leftSpeed = MOTOR_MAX_SPEED;
 
-    if (rightSpeed < MOTOR_MIN_SPEED) rightSpeed = MOTOR_MIN_SPEED;
-    else if (rightSpeed > MOTOR_MAX_SPEED) rightSpeed = MOTOR_MAX_SPEED;
+    if (rightSpeed <= MOTOR_MIN_SPEED) rightSpeed = MOTOR_MIN_SPEED;
+    else if (rightSpeed >= MOTOR_MAX_SPEED) rightSpeed = MOTOR_MAX_SPEED;
 
     // round wheelspeeds
-    leftSpeed = floor(leftSpeed);
-    rightSpeed = floor(rightSpeed);
+    //leftSpeed = floor(leftSpeed);
+    //rightSpeed = floor(rightSpeed);
     
     motors.setSpeeds(leftSpeed, rightSpeed);
 
@@ -398,6 +382,8 @@ void debugPosition()
 // export data for excel plotting and tuning
 void logCSV()
 {
+  Serial.print(millis());
+  Serial.print(",");
   Serial.print(pos[X]);
   Serial.print(",");
   Serial.print(pos[Y]);
@@ -425,7 +411,11 @@ void printCSVHeadings()
 {
   Serial.println(); // nextline
   Serial.println(__TIMESTAMP__);
-  
+
+  Serial.print("Begin: ");
+  Serial.print(millis());
+ 
+  Serial.print("time,");
   Serial.print("X,");
   Serial.print("Y,");
   Serial.print("Theta,");
@@ -436,5 +426,5 @@ void printCSVHeadings()
   Serial.print("err,");
   Serial.print("PID,");
   Serial.print("leftSpeed,");
-  Serial.println("rightSpeed,");
+  Serial.println("rightSpeed");
 }
