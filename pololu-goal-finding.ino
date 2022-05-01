@@ -105,10 +105,10 @@ unsigned long motorT1, motorT2;
 const unsigned long MOTOR_PERIOD = 20UL;
 
 /* PID data */
-// proportional error factor
+// proportional gain
 const float KP = 20.0f;
 
-// suggested PID correction object
+// suggested PID correction
 float PIDCorrection = 0.0f;
 
 // current theta vs theta of goal. Derived from arctan
@@ -117,12 +117,8 @@ float currentError = 0.0f;
 // used in calculating error
 float arctanToGoal = 0.0f;
 
-/* debugging switches */
+/* debugging data */
 bool bEncoderDebug = false;
-bool bPositionDebug = false;
-bool bMotorDebug = false;
-bool bPIDDebug = false;
-
 bool bLogCSV = true;
 unsigned long csvT1 = 0UL, csvT2 = 0UL;
 const unsigned long csvPERIOD = 50UL;
@@ -141,9 +137,17 @@ void loop()
     readEncoders();
     setMotors();
     checkGoalStatus();
+
+    if (bLogCSV) logCSV();
   }
 
-  if (bLogCSV) logCSV();
+  // sleep when done
+  else 
+  {
+    ledGreen(true);
+    delay(1000);
+    ledGreen(false);
+  }
 }
 
 /**
@@ -211,8 +215,6 @@ void getPosition()
   // calculate linear distance to goal using updated position
   currentGoalDistance = sqrt(sq(goal[X] - pos[X]) + sq(goal[Y] - pos[Y]));
 
-  if (bPositionDebug) debugPosition();
-
   // send position data to PID controller to get a correction
   getPIDCorrection();
 }
@@ -231,8 +233,6 @@ void getPIDCorrection()
   currentError = pos[THETA] - arctanToGoal;
 
   PIDCorrection = KP * currentError;
-
-  if (bPIDDebug) debugPID();
 }
 
 /**
@@ -309,23 +309,11 @@ void setMotors()
     
     motors.setSpeeds(leftSpeed, rightSpeed);
 
-    if (bMotorDebug) debugMotors();
-
     motorT2 = motorT1;
   }
 }
 
-void debugPID()
-{
-  Serial.print("PID ");
-  Serial.print("atan: ");
-  Serial.print(arctanToGoal);
-  Serial.print(" err: ");
-  Serial.print(currentError);
-  Serial.print(" output: ");
-  Serial.println(PIDCorrection);
-}
-
+// export encoder data
 void debugEncoders()
 {
   Serial.print("ENC ");
@@ -353,68 +341,12 @@ void debugEncoders()
   Serial.println(sDelta);
 }
 
-void debugMotors()
-{
-  Serial.print("MOT ");
-  Serial.print(leftSpeed);
-  Serial.print(", ");
-  Serial.println(rightSpeed);
-}
-
-void debugPosition()
-{
-  Serial.print("POS (");
-  Serial.print(pos[X]);
-  Serial.print(", ");
-  Serial.print(pos[Y]);
-  Serial.print(", ");
-  Serial.print(pos[THETA]);
-  Serial.print(")");
-  Serial.print(" tgt (");
-  Serial.print(goal[X]);
-  Serial.print(", ");
-  Serial.print(goal[Y]);
-  Serial.print(")");
-  Serial.print(" goalDist: ");
-  Serial.println(currentGoalDistance);
-}
-
-// export data for excel plotting and tuning
-void logCSV()
-{
-  Serial.print(millis());
-  Serial.print(",");
-  Serial.print(pos[X]);
-  Serial.print(",");
-  Serial.print(pos[Y]);
-  Serial.print(",");
-  Serial.print(pos[THETA]);
-  Serial.print(",");
-  Serial.print(goal[X]);
-  Serial.print(",");
-  Serial.print(goal[Y]);
-  Serial.print(",");
-  Serial.print(currentGoalDistance);
-  Serial.print(",");
-  Serial.print(arctanToGoal);
-  Serial.print(",");
-  Serial.print(currentError);
-  Serial.print(",");
-  Serial.print(PIDCorrection);
-  Serial.print(",");
-  Serial.print(leftSpeed);
-  Serial.print(",");
-  Serial.println(rightSpeed);
-}
-
+// headings for csv export
 void printCSVHeadings()
 {
   Serial.println(); // nextline
   Serial.println(__TIMESTAMP__);
 
-  Serial.print("Begin: ");
-  Serial.print(millis());
- 
   Serial.print("time,");
   Serial.print("X,");
   Serial.print("Y,");
@@ -423,8 +355,44 @@ void printCSVHeadings()
   Serial.print("yGoal,");
   Serial.print("goalDist,");
   Serial.print("atan,");
-  Serial.print("err,");
+  Serial.print("error,");
   Serial.print("PID,");
   Serial.print("leftSpeed,");
   Serial.println("rightSpeed");
+}
+
+// export csv data for plotting and tuning
+void logCSV()
+{
+
+  csvT1 = millis();
+
+  if (csvT1 > csvT2 + csvPERIOD)
+  {
+    Serial.print(millis());
+    Serial.print(",");
+    Serial.print(pos[X]);
+    Serial.print(",");
+    Serial.print(pos[Y]);
+    Serial.print(",");
+    Serial.print(pos[THETA]);
+    Serial.print(",");
+    Serial.print(goal[X]);
+    Serial.print(",");
+    Serial.print(goal[Y]);
+    Serial.print(",");
+    Serial.print(currentGoalDistance);
+    Serial.print(",");
+    Serial.print(arctanToGoal);
+    Serial.print(",");
+    Serial.print(currentError);
+    Serial.print(",");
+    Serial.print(PIDCorrection);
+    Serial.print(",");
+    Serial.print(leftSpeed);
+    Serial.print(",");
+    Serial.println(rightSpeed);
+
+    csvT2 = csvT1;
+  }
 }
