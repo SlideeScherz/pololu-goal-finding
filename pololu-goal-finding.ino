@@ -21,18 +21,33 @@ public:
   double y;
   double theta;
 
-  Coordinate()
-  {
-    x = 0;
-    y = 0;
-    theta = 0;
-  }
-
   Coordinate(double _x, double _y, double _theta = NULL)
   {
     x = _x;
     y = _y;
     theta = _theta;
+  }
+};
+
+struct Timer {
+public:
+  unsigned long t1;
+  unsigned long t2;
+  unsigned long period;
+
+  Timer(unsigned long _period)
+  {
+    t1 = 0ul;
+    t2 = 0ul;
+    period = _period;
+  }
+
+  void reset() { t2 = t1; }
+
+  bool ready() 
+  { 
+    t1 = millis();
+    return t1 > t2 + period; 
   }
 };
 
@@ -50,13 +65,9 @@ const bool PID_DEBUG = true;        // pid and erros
 
 /* scheduler data */
 
-const unsigned long MOTOR_PERIOD = 20ul;            // motor speed
-const unsigned long ENCODER_PERIOD = 20ul;          // count encoders
-const unsigned long CSV_PERIOD = 50uL;              // print csv row
-
-unsigned long encoderT1 = 0ul, encoderT2 = 0ul; // wheel encoders timer
-unsigned long csvT1 = 0ul, csvT2 = 0ul;         // csv timer
-unsigned long motorT1 = 0ul, motorT2 = 0ul;     // wheel motors timer
+Timer motorTimer(20ul);
+Timer encoderTimer(20ul);
+Timer csvTimer(50ul);
 
 /* encoder data */
 
@@ -96,10 +107,10 @@ const double B = 8.5;
 /* position data */
 
 // positional polar coordinates
-Coordinate pos;
+Coordinate pos(0, 0, 0);
 
 // change in position between last 2 intervals
-Coordinate deltaPos;
+Coordinate deltaPos(0, 0, 0);
 
 /* goal data */
 
@@ -113,9 +124,9 @@ const int NUM_GOALS = 4;
 Coordinate goal1(100, 80);
 Coordinate goal2(-50, 30);
 Coordinate goal3(100, -150);
-Coordinate home;
+Coordinate home(0, 0);
 
-Coordinate goals[NUM_GOALS] = { goal1, goal2, goal3, home };
+Coordinate goals[] = { goal1, goal2, goal3, home };
 
 Coordinate goal = goals[currentGoal];
 
@@ -277,11 +288,8 @@ void checkGoalStatus(Coordinate p, Coordinate g, double errorThreshold)
  */
 void readEncoders()
 {
-  encoderT1 = millis();
-
-  if (encoderT1 > encoderT2 + ENCODER_PERIOD)
+  if (encoderTimer.ready())
   {
-
     // read current encoder count
     countsL += encoders.getCountsAndResetLeft();
     countsR += encoders.getCountsAndResetRight();
@@ -305,8 +313,7 @@ void readEncoders()
     // send encoder data to calculate x,y,theta position
     localize();
 
-    // reset timer
-    encoderT2 = encoderT1;
+    encoderTimer.reset();
   }
 }
 
@@ -365,9 +372,7 @@ double getPID(Coordinate p, Coordinate g)
  */
 void setMotors()
 {
-  motorT1 = millis();
-
-  if (motorT1 > motorT2 + MOTOR_PERIOD)
+  if (motorTimer.ready())
   {
     // TODO reset distance factor here
 
@@ -380,7 +385,7 @@ void setMotors()
     // do not adjust regardless of fwd or backwards use
     motors.setSpeeds(speedL, speedR);
 
-    motorT2 = motorT1;
+    motorTimer.reset();
   }
 }
 
@@ -437,12 +442,10 @@ void printDebugHeadings()
 // export csv data for plotting and tuning
 void printDebugData()
 {
-  csvT1 = millis();
-
-  if (csvT1 > csvT2 + CSV_PERIOD)
+  if (csvTimer.ready())
   {
     // current timestamp
-    Serial.print(csvT1);
+    Serial.print(csvTimer.t1);
     Serial.print(",");
 
     // localization
@@ -511,6 +514,6 @@ void printDebugData()
 
     Serial.print("\n");
 
-    csvT2 = csvT1;
+    csvTimer.reset();
   }
 }
