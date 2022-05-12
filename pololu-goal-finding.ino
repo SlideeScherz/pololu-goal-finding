@@ -405,7 +405,6 @@ void printDebugHeadings()
   {
     Serial.print("dError,");
     Serial.print("aError,");
-    Serial.print("absAError,");
     Serial.print("gain, ");
   }
 
@@ -467,8 +466,6 @@ void printDebugData()
       Serial.print(distanceError);
       Serial.print(",");
       Serial.print(angleError);
-      Serial.print(",");
-      Serial.print(abs(angleError));
       Serial.print(",");
       Serial.print(gain);
       Serial.print(",");
