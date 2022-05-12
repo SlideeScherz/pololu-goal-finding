@@ -1,0 +1,7 @@
+on: [push, pull_request]
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Arduino Sketch Size Deltas
+        uses: arduino/report-size-deltas@v1.0.0
