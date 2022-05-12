@@ -15,6 +15,27 @@ Encoders encoders;
 Buzzer buzzer;
 Motors motors;
 
+struct Coordinate {
+public:
+  double x;
+  double y;
+  double theta;
+
+  Coordinate()
+  {
+    x = 0;
+    y = 0;
+    theta = 0;
+  }
+
+  Coordinate(double _x, double _y, double _theta = NULL)
+  {
+    x = _x;
+    y = _y;
+    theta = _theta;
+  }
+};
+
 /**
  * debug switches
  * Data outputted in CSV format
@@ -26,9 +47,6 @@ const bool LOC_DEBUG = true;        // localization
 const bool ENCODER_DEBUG = false;    // wheel encoders
 const bool MOTOR_DEBUG = true;      // wheel motors
 const bool PID_DEBUG = true;        // pid and erros
-
-// index for parsing pos, delta, goal arrays
-constexpr int X = 0, Y = 1, THETA = 2;
 
 /* scheduler data */
 
@@ -78,12 +96,13 @@ const double B = 8.5;
 /* position data */
 
 // positional polar coordinates
-double pos[3] = {};
+Coordinate pos;
 
 // change in position between last 2 intervals
-double deltaPos[3] = {};
+Coordinate deltaPos;
 
 /* goal data */
+
 // index of GOAL array to select which goal to navigate to 
 int currentGoal = 0;
 
@@ -91,25 +110,22 @@ int currentGoal = 0;
 const int NUM_GOALS = 4;
 
 // goal containers
-double xGoals[NUM_GOALS] = { 100.0, -50.0, 100.0, 0.0 };
-double yGoals[NUM_GOALS] = { 80.0, 30.0, -150.0, 0.0 };
+Coordinate goal1(100, 80);
+Coordinate goal2(-50, 30);
+Coordinate goal3(100, -150);
+Coordinate home;
 
-// coordinates of goal
-double goal[2] = { xGoals[currentGoal] , yGoals[currentGoal] };
+Coordinate goals[NUM_GOALS] = { goal1, goal2, goal3, home };
 
-// allow a slight error within this range
-double goalPrecision = 0.50;
+Coordinate goal = goals[currentGoal];
 
 bool xAccepted = false, yAccepted = false;
 bool goalComplete = false, allGoalsComplete = false;
 
 // allow a slight error within this range
-const double GOAL_PRECISION = 0.5;
+const double GOAL_PRECISION = 1.0;
 
 /* motor data */
-
-// distance before applying dampening break force 
-const double DAMPEN_RANGE = 10.0;
 
 // speed limits
 const int MIN_SPEED = 40, MAX_SPEED = 80;
@@ -122,7 +138,11 @@ double speedL = 0.0, speedR = 0.0;
 
 /* PID data */
 
-const double KP = 37.5;
+// max error is about 6
+// max diff to apply is MAX - BASE = 20
+// 20 = KP * 3.5
+
+const double KP = 27.50;
 
 // suggested PID correction
 double gain = 0.0;
@@ -130,8 +150,11 @@ double gain = 0.0;
 // current theta vs theta of goal. Derived from arctan
 double angleError = 0.0;
 
+// TODO use for  smooth accel / decel =======================
 // starting linear distance from goal. Updated on goal change
-double startDistanceError = 0.0;
+//double startDistanceError = 0.0;
+// percentage of goal complete. Used to dampen
+//double distanceFactor = 0.0;
 
 // current linear distance from goal. Updated on motor period
 double distanceError = 0.0;
@@ -146,9 +169,8 @@ void setup()
   encoders.flipEncoders(true);
 
   // init errors
-  startDistanceError = eucDistance(goal[X], goal[Y], pos[X], pos[Y]);
-  distanceError = eucDistance(goal[X], goal[Y], pos[X], pos[Y]);
-  angleError = getAngleError(pos[THETA]);
+  distanceError = eucDistance(pos, goal);
+  angleError = getAngleError(pos, goal);
 
   delay(1000ul); // dont you run away from me...
   buzzer.play("c32");
@@ -187,25 +209,20 @@ void loop()
 
 /**
  * @brief Calculate Euclidian distance
- * @param x2 goal x
- * @param y2 goal y
- * @param x1 current x
- * @param y1 current y
  * @return double distance from target points
  */
-double eucDistance(double x2, double y2, double x1, double y1)
+double eucDistance(Coordinate p1, Coordinate p2)
 {
-  return sqrt(sq(x2 - x1) + sq(y2 - y1));
+  return sqrt(sq(p2.x - p1.x) + sq(p2.y - p1.y));
 }
 
 /**
  * @brief Get the Angle Error of robot vs target
- * @param currentTheta robots orientation
  * @return double error of orientation
  */
-double getAngleError(double currentTheta)
+double getAngleError(Coordinate p, Coordinate g)
 {
-  return currentTheta - atan2(goal[Y] - pos[Y], goal[X] - pos[X]);
+  return p.theta - atan2(g.y - p.y, g.x - p.x);
 }
 
 /**
@@ -233,10 +250,10 @@ int handleLimit(int input, int min, int max)
  * @return true both accepted within acceptable goal
  * @return false not within acceptable goal
  */
-void checkGoalStatus(double position[], double goalA[], double errorThreshold)
+void checkGoalStatus(Coordinate p, Coordinate g, double errorThreshold)
 {
-  xAccepted = goalA[X] - errorThreshold <= position[X] && goal[X] + errorThreshold >= position[X];
-  yAccepted = goalA[Y] - errorThreshold <= position[Y] && goal[Y] + errorThreshold >= position[Y];
+  xAccepted = (g.x - errorThreshold <= p.x) && (g.x + errorThreshold >= p.x);
+  yAccepted = (g.y - errorThreshold <= p.y) && (g.y + errorThreshold >= p.y);
 
   // check completed goal and set status
   goalComplete = (xAccepted && yAccepted);
@@ -245,9 +262,7 @@ void checkGoalStatus(double position[], double goalA[], double errorThreshold)
   {
     //cycle next goal
     currentGoal++;
-    goal[X] = xGoals[currentGoal];
-    goal[Y] = yGoals[currentGoal];
-    startDistanceError = eucDistance(goal[X], goal[Y], pos[X], pos[Y]);
+    goal = goals[currentGoal];
     buzzer.play("c32");
   }
 
@@ -307,19 +322,19 @@ void localize()
   deltaDistTotal = (deltaDistL + deltaDistR) / 2.0;
 
   // change in orientation
-  deltaPos[THETA] = (deltaDistR - deltaDistL) / B;
+  deltaPos.theta = (deltaDistR - deltaDistL) / B;
 
   // get polar coordinates of x and y
-  deltaPos[X] = deltaDistTotal * cos(pos[THETA] + deltaPos[THETA] / 2);
-  deltaPos[Y] = deltaDistTotal * sin(pos[THETA] + deltaPos[THETA] / 2);
+  deltaPos.x = deltaDistTotal * cos(pos.theta + deltaPos.theta / 2);
+  deltaPos.y = deltaDistTotal * sin(pos.theta + deltaPos.theta / 2);
 
   // update coordinates
-  pos[X] += deltaPos[X];
-  pos[Y] += deltaPos[Y];
-  pos[THETA] += deltaPos[THETA];
+  pos.x += deltaPos.x;
+  pos.y += deltaPos.y;
+  pos.theta += deltaPos.theta;
 
   // send position data to PID controller to get a correction
-  gain = getPID(pos[THETA]);
+  gain = getPID();
 
   checkGoalStatus(pos, goal, GOAL_PRECISION);
 }
@@ -328,13 +343,13 @@ void localize()
  * @brief get a proportionate correction based on current theta vs goal
  * @returns double proportional angle correction
  */
-double getPID(double currentTheta)
+double getPID()
 {
   // distance error magnitude
-  distanceError = eucDistance(goal[X], goal[Y], pos[X], pos[Y]);
+  distanceError = eucDistance(pos, goal);
 
   // error magnitude: current state - target state
-  angleError = getAngleError(currentTheta);
+  angleError = getAngleError(pos, goal);
 
   return KP * angleError;
 }
@@ -354,15 +369,10 @@ void setMotors()
 
   if (motorT1 > motorT2 + MOTOR_PERIOD)
   {
-    speedL = BASE_SPEED + gain;
-    speedR = BASE_SPEED - gain;
+    // TODO reset distance factor here
 
-    // reduce wheelspeed if within threshold
-    if (distanceError <= DAMPEN_RANGE)
-    {
-      speedL *= (distanceError / DAMPEN_RANGE);
-      speedR *= (distanceError / DAMPEN_RANGE);
-    }
+    speedL = (BASE_SPEED + gain);
+    speedR = (BASE_SPEED - gain);
 
     speedL = handleLimit(speedL, MIN_SPEED, MAX_SPEED);
     speedR = handleLimit(speedR, MIN_SPEED, MAX_SPEED);
@@ -404,7 +414,6 @@ void printDebugHeadings()
   {
     Serial.print("speedL,");
     Serial.print("speedR,");
-    Serial.print("test");
   }
 
   // encoders
@@ -440,15 +449,15 @@ void printDebugData()
     // localization
     if (LOC_DEBUG)
     {
-      Serial.print(pos[X]);
+      Serial.print(pos.x);
       Serial.print(",");
-      Serial.print(pos[Y]);
+      Serial.print(pos.y);
       Serial.print(",");
-      Serial.print(pos[THETA]);
+      Serial.print(pos.theta);
       Serial.print(",");
-      Serial.print(goal[X]);
+      Serial.print(goal.x);
       Serial.print(",");
-      Serial.print(goal[Y]);
+      Serial.print(goal.y);
       Serial.print(",");
     }
 
@@ -472,8 +481,8 @@ void printDebugData()
       Serial.print(",");
       Serial.print(speedR);
       Serial.print(",");
-      Serial.print((distanceError / startDistanceError));
-      Serial.print(",");
+      //Serial.print(distanceFactor);
+      //Serial.print(",");
     }
 
     // encoders
