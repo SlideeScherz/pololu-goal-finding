@@ -334,7 +334,7 @@ void localize()
   pos.theta += deltaPos.theta;
 
   // send position data to PID controller to get a correction
-  gain = getPID();
+  gain = getPID(pos, goal);
 
   checkGoalStatus(pos, goal, GOAL_PRECISION);
 }
@@ -343,13 +343,13 @@ void localize()
  * @brief get a proportionate correction based on current theta vs goal
  * @returns double proportional angle correction
  */
-double getPID()
+double getPID(Coordinate p, Coordinate g)
 {
   // distance error magnitude
-  distanceError = eucDistance(pos, goal);
+  distanceError = eucDistance(p, g);
 
   // error magnitude: current state - target state
-  angleError = getAngleError(pos, goal);
+  angleError = getAngleError(p, g);
 
   return KP * angleError;
 }
