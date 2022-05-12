@@ -1,17 +1,20 @@
 # pololu goal finding
 
 **v1.0.1** 
+
 4/19/2022
 
-[![build](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
+[![.github/workflows/report-size-deltas.yml](https://github.com/SlideeScherz/pololu-goal-finding/actions/workflows/report-size-deltas.yml/badge.svg)](https://github.com/SlideeScherz/pololu-goal-finding/actions/workflows/report-size-deltas.yml)
 
 ---
+
 ## Features
 
 Given any number of waypoints as (x,y,theta) **polar** coordinates, use the wheel encoders and **localization** to determine the robots current position, 
 and navigate to it's goal using a **PID Controller**
 
 #### Localization
+
 Begin tracking the wheel encoders at the (0,0) position
 
 Encoder wheel distance tracking:
@@ -42,8 +45,9 @@ currentGoalDistance = sqrt(sq(xGoal - x) + sq(y - yGoal));
 
 #### PID Controller
 
-Well not really. More so a P controller (proportional error)
+Well not really. More so a P controller (proportional error).
 Set the error in radians by using ```arctan``` to compare current angle vs the goal.
+
 ```cpp
 currentError = theta - atan2(yGoal - yPos, xGoal - xPos);
 PIDCorrection = KP * currentError;
@@ -63,7 +67,7 @@ Purchase Pololu 3pi+ OLED Robot from [pololu](https://www.pololu.com/product/497
 
 Pull and explore [pololu git repository](https://github.com/pololu/pololu-3pi-plus-32u4-arduino-library) and add as a project dependency.
 
-***Pololu Usage***
+Pololu Usage
 
 ```cpp
 #include <Pololu3piPlus32U4.h>
@@ -78,5 +82,3 @@ Encoders encoders;
 ## License
 
 ### MIT 
-
-Free Software, nice
